@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MORPHO Recruitment Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+<style>
+:root{
+  --bg-primary:#f6f7f9; --bg-card:#ffffff; --bg-header:#12233f;
+  --text-primary:#1a202c; --text-secondary:#64748b; --text-muted:#94a3b8; --text-on-dark:#f8fafc;
+  --border:#e2e8f0;
+  --c1:#2563eb; --c2:#0891b2; --c3:#16a34a; --c4:#ca8a04; --c5:#dc2626; --c6:#7c3aed; --c7:#db2777;
+  --positive:#16a34a; --negative:#dc2626; --neutral:#64748b;
+  --gap:16px; --radius:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.45;font-size:14px}
+.container{max-width:1500px;margin:0 auto;padding:var(--gap)}
+
+/* Header */
+.header{background:var(--bg-header);color:var(--text-on-dark);padding:16px 22px;border-radius:var(--radius);margin-bottom:var(--gap)}
+.header .title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.header h1{font-size:19px;font-weight:600;letter-spacing:-0.01em}
+.header .subtitle{font-size:12px;color:rgba(248,250,252,0.7);margin-top:2px}
+.status-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.08)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}
+.status-dot.live{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,0.18)}
+.status-dot.sample{background:#f59e0b}
+.status-dot.error{background:#ef4444}
+.status-dot.loading{background:#60a5fa;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1)}
+.control{display:flex;flex-direction:column;gap:4px}
+.control label{font-size:10.5px;color:rgba(248,250,252,0.65);text-transform:uppercase;letter-spacing:0.05em;font-weight:500}
+.control input,.control select{padding:7px 10px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;background:rgba(255,255,255,0.08);color:var(--text-on-dark);font-size:13px;font-family:inherit}
+.control input[type="file"]{padding:4px;font-size:12px}
+.control input::placeholder{color:rgba(248,250,252,0.4)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+button{padding:7px 14px;border-radius:6px;border:1px solid transparent;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all 0.15s}
+button:disabled{opacity:0.5;cursor:not-allowed}
+.btn-primary{background:#2563eb;color:white}
+.btn-primary:hover:not(:disabled){background:#1d4ed8}
+.btn-secondary{background:rgba(255,255,255,0.08);color:var(--text-on-dark);border-color:rgba(255,255,255,0.15)}
+.btn-secondary:hover:not(:disabled){background:rgba(255,255,255,0.14)}
+.btn-ghost{background:transparent;color:rgba(248,250,252,0.7);border-color:transparent}
+.btn-ghost:hover:not(:disabled){color:var(--text-on-dark)}
+.toggle-group{display:flex;align-items:center;gap:6px;color:rgba(248,250,252,0.75);font-size:12px;margin-left:auto}
+.toggle-group input{accent-color:#60a5fa}
+
+/* Banner */
+.banner{margin-bottom:var(--gap);padding:11px 16px;border-radius:var(--radius);font-size:13px;line-height:1.5}
+.banner.info{background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe}
+.banner.warn{background:#fffbeb;color:#854d0e;border:1px solid #fde68a}
+.banner.error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.banner.ok{background:#f0fdf4;color:#14532d;border:1px solid #bbf7d0}
+.banner code{background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px;font-size:12px}
+.hidden{display:none !important}
+
+/* Filters */
+.filters{background:var(--bg-card);border-radius:var(--radius);padding:12px 16px;margin-bottom:var(--gap);display:flex;gap:14px;align-items:center;flex-wrap:wrap;border:1px solid var(--border);box-shadow:0 1px 2px rgba(15,23,42,0.04)}
+.filters .filter-group{display:flex;flex-direction:column;gap:3px}
+.filters .filter-group label{font-size:10.5px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;font-weight:600}
+.filters select,.filters input[type="date"],.filters input[type="number"]{padding:5px 9px;border:1px solid var(--border);border-radius:5px;background:white;color:var(--text-primary);font-size:12.5px;font-family:inherit}
+.filters .spacer{flex:1}
+
+/* Sections */
+.section-label{display:flex;align-items:baseline;gap:10px;margin:var(--gap) 0 10px 4px}
+.section-label h2{font-size:13px;font-weight:700;color:var(--text-primary);text-transform:uppercase;letter-spacing:0.08em}
+.section-label .desc{font-size:12px;color:var(--text-secondary)}
+
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:var(--gap);margin-bottom:var(--gap)}
+.kpi-card{background:var(--bg-card);border-radius:var(--radius);padding:14px 16px;border:1px solid var(--border);box-shadow:0 1px 2px rgba(15,23,42,0.04);position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c1)}
+.kpi-card.c2::before{background:var(--c2)} .kpi-card.c3::before{background:var(--c3)}
+.kpi-card.c4::before{background:var(--c4)} .kpi-card.c5::before{background:var(--c5)} .kpi-card.c6::before{background:var(--c6)}
+.kpi-label{font-size:10.5px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px}
+.kpi-value{font-size:26px;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em;line-height:1.1}
+.kpi-sub{font-size:11.5px;color:var(--text-secondary);margin-top:3px;min-height:1em}
+.kpi-spark{position:relative;height:32px;margin-top:8px;margin-left:-4px;margin-right:-4px}
+.kpi-spark canvas{position:absolute;inset:0;width:100% !important;height:100% !important;display:block}
+
+/* Charts */
+.row{display:grid;gap:var(--gap);margin-bottom:var(--gap)}
+.row.c2{grid-template-columns:1.5fr 1fr}
+.row.c2-eq{grid-template-columns:1fr 1fr}
+.row.c3{grid-template-columns:repeat(3,1fr)}
+.row.c4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:1100px){.row.c2,.row.c2-eq,.row.c3,.row.c4{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.row.c2,.row.c2-eq,.row.c3,.row.c4{grid-template-columns:1fr}}
+.card{background:var(--bg-card);border-radius:var(--radius);padding:14px 16px;border:1px solid var(--border);box-shadow:0 1px 2px rgba(15,23,42,0.04)}
+.card h3{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:2px;letter-spacing:-0.01em}
+.card .card-sub{font-size:11.5px;color:var(--text-secondary);margin-bottom:10px}
+.chart-body{position:relative;height:260px}
+.chart-body.tall{height:320px}
+.chart-body.xtall{height:420px}
+.chart-body.short{height:180px}
+
+/* Funnel */
+.funnel-row{display:grid;grid-template-columns:130px 1fr 95px;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--border)}
+.funnel-row:last-child{border-bottom:none}
+.funnel-label{font-size:12.5px;color:var(--text-primary);font-weight:500}
+.funnel-bar-bg{height:20px;background:#f1f5f9;border-radius:4px;overflow:hidden;position:relative}
+.funnel-bar{height:100%;background:linear-gradient(90deg,var(--c1),#60a5fa);display:flex;align-items:center;padding-left:8px;color:white;font-size:11px;font-weight:600;transition:width 0.3s}
+.funnel-bar.c2{background:linear-gradient(90deg,var(--c2),#22d3ee)}
+.funnel-bar.c3{background:linear-gradient(90deg,var(--c3),#4ade80)}
+.funnel-bar.c4{background:linear-gradient(90deg,var(--c4),#facc15)}
+.funnel-bar.c5{background:linear-gradient(90deg,var(--c5),#f87171)}
+.funnel-count{font-size:12.5px;color:var(--text-secondary);text-align:right}
+.funnel-count strong{color:var(--text-primary);font-weight:600;margin-right:3px}
+
+/* Stats grid */
+.stat-grid{display:grid;grid-template-columns:1fr auto auto;gap:4px 14px;font-size:12.5px}
+.stat-grid .sg-label{color:var(--text-primary)}
+.stat-grid .sg-value{color:var(--text-secondary);text-align:right;font-variant-numeric:tabular-nums}
+.stat-grid .sg-spark-wrap{position:relative;width:80px;height:22px;margin-left:auto}
+.stat-grid .sg-spark-wrap canvas{position:absolute;inset:0;width:100% !important;height:100% !important;display:block}
+.stat-grid .sg-header{font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding-bottom:3px;margin-bottom:3px}
+
+/* Tables */
+.table-section{background:var(--bg-card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:0 1px 2px rgba(15,23,42,0.04);margin-bottom:var(--gap);overflow:hidden}
+.table-head{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border)}
+.table-head h3{font-size:13px;font-weight:600}
+.table-tabs{display:flex;gap:2px;background:#f1f5f9;padding:3px;border-radius:6px}
+.table-tab{padding:5px 11px;border-radius:4px;font-size:12px;cursor:pointer;color:var(--text-secondary);font-weight:500;border:none;background:transparent}
+.table-tab.active{background:white;color:var(--text-primary);box-shadow:0 1px 2px rgba(15,23,42,0.08)}
+.table-scroll{overflow-x:auto;max-height:440px;overflow-y:auto}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table thead{position:sticky;top:0;background:#f8fafc;z-index:1}
+.data-table thead th{text-align:left;padding:7px 12px;border-bottom:1px solid var(--border);color:var(--text-secondary);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;user-select:none}
+.data-table thead th.th-sort{cursor:pointer}
+.data-table thead th.th-sort:hover{color:var(--text-primary);background:#f1f5f9}
+.data-table thead tr.th-filter-row th{padding:4px 6px;border-bottom:1px solid var(--border);background:#fbfcfd;cursor:default;text-transform:none;letter-spacing:0}
+.data-table thead tr.th-filter-row th:hover{background:#fbfcfd}
+.data-table .col-filter{width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:4px;background:white;color:var(--text-primary);font-size:11.5px;font-family:inherit;font-weight:400;text-transform:none}
+.data-table .col-filter:focus{outline:none;border-color:var(--c1);box-shadow:0 0 0 2px rgba(37,99,235,0.15)}
+.data-table tbody td{padding:7px 12px;border-bottom:1px solid #f1f5f9;white-space:nowrap;vertical-align:middle}
+.data-table tbody tr:hover{background:#fafbfc}
+.data-table tbody tr:last-child td{border-bottom:none}
+.data-table canvas{display:inline-block;vertical-align:middle}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500}
+.badge.arm-1{background:#dbeafe;color:#1e40af}
+.badge.arm-2{background:#fce7f3;color:#9d174d}
+.badge.eligible{background:#dcfce7;color:#166534}
+.badge.screen_fail,.badge.screen-fail{background:#fee2e2;color:#991b1b}
+.badge.completed{background:#dcfce7;color:#166534}
+.badge.active{background:#fef3c7;color:#854d0e}
+.badge.eligible-status{background:#e0e7ff;color:#3730a3}
+.badge.withdrawn{background:#fee2e2;color:#991b1b}
+.badge.screened{background:#f1f5f9;color:#475569}
+.badge.sev-1{background:#dcfce7;color:#166534}
+.badge.sev-2{background:#fef3c7;color:#854d0e}
+.badge.sev-3{background:#fed7aa;color:#9a3412}
+.badge.sev-4{background:#fecaca;color:#991b1b}
+.badge.sev-5{background:#1e293b;color:white}
+
+/* Timeline */
+.timeline-wrap{padding:4px}
+.timeline-group{margin-bottom:12px}
+.timeline-group-label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);margin-bottom:6px;padding-left:4px}
+.timeline-row{display:grid;grid-template-columns:60px 1fr;gap:8px;align-items:center;padding:2px 0}
+.timeline-id{font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums;text-align:right}
+.timeline-track{position:relative;height:14px;background:linear-gradient(to right,#f8fafc 0%,#f8fafc 100%);border-radius:2px}
+.timeline-line{position:absolute;top:6px;height:2px;background:#cbd5e1}
+.timeline-event{position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;border:1.5px solid white;box-shadow:0 0 0 1px rgba(0,0,0,0.1);cursor:pointer}
+.timeline-event.evt-consent{background:#2563eb}
+.timeline-event.evt-day1{background:#0891b2}
+.timeline-event.evt-rand{background:#16a34a}
+.timeline-event.evt-n1{background:#ca8a04}
+.timeline-event.evt-n2{background:#dc2626}
+.timeline-event:hover{transform:translate(-50%,-50%) scale(1.4);z-index:2}
+.timeline-axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text-muted);padding-left:68px;margin-top:4px}
+.timeline-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--text-secondary);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.timeline-legend span{display:inline-flex;align-items:center;gap:5px}
+.timeline-legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+
+/* Footer & misc */
+.footer{text-align:center;color:var(--text-secondary);font-size:12px;padding:14px 0}
+details.help{margin-top:10px;font-size:12px;color:rgba(248,250,252,0.75)}
+details.help summary{cursor:pointer;padding:4px 0;color:rgba(248,250,252,0.85)}
+details.help pre{background:rgba(0,0,0,0.25);padding:10px;border-radius:4px;margin-top:6px;overflow-x:auto;font-size:11.5px;color:rgba(248,250,252,0.9);line-height:1.4}
+details.help code{background:rgba(0,0,0,0.15);padding:1px 4px;border-radius:3px}
+.kbd{font-family:monospace;background:rgba(0,0,0,0.25);padding:1px 5px;border-radius:3px;font-size:11px}
+
+@media print{body{background:white}.header,.filters,.banner{display:none}.card{break-inside:avoid;border-color:#ddd;box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HEADER -->
+<header class="header">
+  <div class="title-row">
+    <div>
+      <h1>MORPHO Recruitment Dashboard</h1>
+      <div class="subtitle">Managing opioid-related sleep apnea — randomized crossover trial (AZM-PLA vs PLA-AZM)</div>
+    </div>
+    <span class="status-pill"><span id="status-dot" class="status-dot sample"></span><span id="status-text">Sample data</span></span>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label>Data file (xlsx)</label>
+      <input type="file" id="file-input" accept=".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+    </div>
+    <div class="control">
+      <label>Study start</label>
+      <input type="date" id="cfg-start">
+    </div>
+    <div class="control">
+      <label>Target enrolled</label>
+      <input type="number" id="cfg-target-enroll" value="50" min="0">
+    </div>
+    <div class="control">
+      <label>Target randomized</label>
+      <input type="number" id="cfg-target-rand" value="38" min="0">
+    </div>
+    <div class="control">
+      <label>Target duration (mo)</label>
+      <input type="number" id="cfg-target-months" value="18" min="1">
+    </div>
+    <div class="control">
+      <label>Auto-refresh (sec)</label>
+      <input type="number" id="cfg-refresh-sec" value="0" min="0" placeholder="0 = off">
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-primary" id="btn-pick-file">Pick xlsx file</button>
+    <button class="btn-secondary" id="btn-refresh" disabled>Refresh from file</button>
+    <button class="btn-ghost" id="btn-load-sample">Load sample data</button>
+    <span class="toggle-group"><label><input type="checkbox" id="chk-auto-refresh"> Auto-refresh</label></span>
+  </div>
+  <details class="help">
+    <summary>How to keep this dashboard in sync with REDCap via Power Query</summary>
+    <pre>The browser cannot trigger Power Query. But this works end-to-end without manual steps:
+
+  1. In Excel, open your xlsx. Data tab → Queries & Connections → right-click the REDCap
+     query → Properties. Check:
+        [x] Refresh every <kbd>N</kbd> minutes
+        [x] Refresh data when opening the file
+        [x] Enable background refresh
+     Then turn on AutoSave (File → Info → or the AutoSave toggle) so the refreshed
+     data is written to disk automatically.
+
+  2. In this dashboard, click "Pick xlsx file" ONCE. Chrome/Edge remember the file
+     handle, so "Refresh from file" re-reads whatever is currently saved to disk
+     — no re-picking needed. Firefox/Safari don't support this API, so you'll
+     need to re-pick the file each refresh.
+
+  3. Turn on "Auto-refresh" and set a refresh interval in seconds. The dashboard
+     will poll the file on disk. If Power Query + AutoSave are running in Excel,
+     the dashboard will pick up fresh data automatically.
+
+Expected xlsx structure: one sheet containing the REDCap flat export (records with
+a <code>record_id</code> column and a <code>redcap_event_name</code> column). If
+your Power Query lands in a table named differently, the dashboard picks the first
+sheet that has both columns; otherwise it uses the first sheet.</pre>
+  </details>
+</header>
+
+<div id="banner" class="banner info hidden"></div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <div class="filter-group"><label>Screening from</label><input type="date" id="f-date-start"></div>
+  <div class="filter-group"><label>Screening to</label><input type="date" id="f-date-end"></div>
+  <div class="filter-group"><label>Arm</label><select id="f-arm"><option value="all">All</option><option value="1">AZM-PLA</option><option value="2">PLA-AZM</option></select></div>
+  <div class="filter-group"><label>Sex</label><select id="f-sex"><option value="all">All</option><option value="0">Male</option><option value="1">Female</option></select></div>
+  <div class="filter-group"><label>Status</label><select id="f-status"><option value="all">All</option><option value="screened">Screened only</option><option value="screen_fail">Screen fail</option><option value="eligible">Eligible (pre-enroll)</option><option value="enrolled">Enrolled (pre-rand)</option><option value="active">Active (rand, on-study)</option><option value="completed">Completed</option><option value="withdrawn">Withdrawn / early DC</option></select></div>
+  <div class="spacer"></div>
+  <div class="filter-group"><label>&nbsp;</label><button id="btn-reset-filters" class="btn-secondary" style="color:var(--text-primary);background:#f1f5f9;border-color:var(--border)">Reset filters</button></div>
+</div>
+
+<!-- KPIs -->
+<section class="kpi-row">
+  <div class="kpi-card"><div class="kpi-label">Screened</div><div class="kpi-value" id="kpi-screened">0</div><div class="kpi-sub" id="kpi-screened-sub">&nbsp;</div><div class="kpi-spark"><canvas id="spark-screened"></canvas></div></div>
+  <div class="kpi-card c2"><div class="kpi-label">Eligible</div><div class="kpi-value" id="kpi-eligible">0</div><div class="kpi-sub" id="kpi-eligible-sub">&nbsp;</div><div class="kpi-spark"><canvas id="spark-eligible"></canvas></div></div>
+  <div class="kpi-card c3"><div class="kpi-label">Enrolled (consented)</div><div class="kpi-value" id="kpi-enrolled">0</div><div class="kpi-sub" id="kpi-enrolled-sub">&nbsp;</div><div class="kpi-spark"><canvas id="spark-enrolled"></canvas></div></div>
+  <div class="kpi-card c4"><div class="kpi-label">Randomized</div><div class="kpi-value" id="kpi-randomized">0</div><div class="kpi-sub" id="kpi-randomized-sub">&nbsp;</div><div class="kpi-spark"><canvas id="spark-randomized"></canvas></div></div>
+  <div class="kpi-card c6"><div class="kpi-label">Active on study</div><div class="kpi-value" id="kpi-active">0</div><div class="kpi-sub" id="kpi-active-sub">&nbsp;</div><div class="kpi-spark"><canvas id="spark-active"></canvas></div></div>
+  <div class="kpi-card c5"><div class="kpi-label">Completed</div><div class="kpi-value" id="kpi-completed">0</div><div class="kpi-sub" id="kpi-completed-sub">&nbsp;</div><div class="kpi-spark"><canvas id="spark-completed"></canvas></div></div>
+</section>
+
+<!-- SCREENING -->
+<div class="section-label"><h2>Screening</h2><span class="desc">Cumulative screenings by eligibility since study start</span></div>
+<div class="row">
+  <div class="card">
+    <h3>Cumulative screenings by eligibility</h3>
+    <div class="card-sub">Step plot from study start date</div>
+    <div class="chart-body tall"><canvas id="chart-cum-screen"></canvas></div>
+  </div>
+</div>
+
+<!-- TARGETS -->
+<div class="section-label"><h2>Recruitment vs targets</h2><span class="desc">Linear target trajectory · dotted line = today</span></div>
+<div class="row c2-eq">
+  <div class="card">
+    <h3>Cumulative enrolled vs target</h3>
+    <div class="card-sub" id="enroll-target-sub">&nbsp;</div>
+    <div class="chart-body tall"><canvas id="chart-cum-enroll"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Cumulative randomized vs target</h3>
+    <div class="card-sub" id="rand-target-sub">&nbsp;</div>
+    <div class="chart-body tall"><canvas id="chart-cum-rand"></canvas></div>
+  </div>
+</div>
+
+<!-- FLOW -->
+<div class="row">
+  <div class="card">
+    <h3>Participant timelines</h3>
+    <div class="card-sub">Each row = one participant · x-axis = date · color = completion status</div>
+    <div id="timeline" class="timeline-wrap"></div>
+  </div>
+</div>
+
+<!-- DEMOGRAPHICS + CLINICAL -->
+<div class="section-label"><h2>Participant characteristics</h2><span class="desc">Demographics and key clinical variables at screening / baseline</span></div>
+<div class="row c4">
+  <div class="card"><h3>Sex</h3><div class="chart-body short"><canvas id="chart-sex"></canvas></div></div>
+  <div class="card"><h3>Race</h3><div class="chart-body short"><canvas id="chart-race"></canvas></div></div>
+  <div class="card"><h3>Ethnicity</h3><div class="chart-body short"><canvas id="chart-eth"></canvas></div></div>
+  <div class="card"><h3>Enrollment / randomization</h3><div class="card-sub">Enrolled (pre-rand) vs each treatment arm</div><div class="chart-body short"><canvas id="chart-arm"></canvas></div></div>
+</div>
+<div class="row c3">
+  <div class="card">
+    <h3>AHI at screening/baseline</h3>
+    <div class="card-sub">Apnea-hypopnea index, events/hr · coalesced from baseline/screening PSG</div>
+    <div class="chart-body"><canvas id="chart-ahi"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Morphine equivalent daily dose (MEQD)</h3>
+    <div class="card-sub">mg/day at screening</div>
+    <div class="chart-body"><canvas id="chart-meqd"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Summary statistics</h3>
+    <div class="card-sub">Key continuous variables · median [IQR] and trend over enrollment</div>
+    <div id="stat-grid" class="stat-grid" style="margin-top:4px"></div>
+  </div>
+</div>
+
+<!-- REASONS -->
+<div class="row c3">
+  <div class="card"><h3>Screen fail reasons</h3><div class="card-sub">From eligibility form</div><div class="chart-body short"><canvas id="chart-screenfail"></canvas></div></div>
+  <div class="card"><h3>Early discontinuation reasons</h3><div class="card-sub">Among randomized-but-not-completed</div><div class="chart-body short"><canvas id="chart-dc"></canvas></div></div>
+  <div class="card"><h3>Adverse events by severity</h3><div class="card-sub">Stacked by resolution status</div><div class="chart-body short"><canvas id="chart-ae"></canvas></div></div>
+</div>
+
+<!-- TABLES -->
+<section class="table-section">
+  <div class="table-head">
+    <h3 id="table-title">Subject-level status</h3>
+    <div class="table-tabs">
+      <button class="table-tab active" data-tab="subjects">Subjects</button>
+      <button class="table-tab" data-tab="aes">Adverse events</button>
+      <button class="table-tab" data-tab="pds">Protocol deviations</button>
+    </div>
+  </div>
+  <div class="table-scroll"><table class="data-table" id="main-table"><thead></thead><tbody></tbody></table></div>
+</section>
+
+<footer class="footer">
+  <div>MORPHO Dashboard · self-contained HTML · <span id="footer-count">0</span> rows loaded · <span id="footer-refreshed">—</span></div>
+</footer>
+</div>
+
+<script>
+// ============================================================================
+//  MORPHO Recruitment Dashboard — xlsx-powered
+// ============================================================================
+
+const COLORS = ['#2563eb','#0891b2','#16a34a','#ca8a04','#dc2626','#7c3aed','#db2777','#64748b'];
+const ELIG_COLORS = {'Eligible':'#16a34a','Screen fail':'#dc2626','Duplicate':'#94a3b8','Other':'#ca8a04'};
+
+// REDCap factor maps
+const MAPS = {
+  sex: {'0':'Male','1':'Female'},
+  race: {'0':'American Indian/AN','1':'Asian','2':'NHPI','3':'Black or AA','4':'White','5':'Multi-race','6':'Unknown','7':'Decline'},
+  ethnicity: {'1':'Hispanic/Latino','2':'Not Hispanic/Latino','3':'Unknown','4':'Decline'},
+  eligibility_assessment: {'1':'Eligible','2':'Screen fail','3':'Duplicate','4':'Other'},
+  eligibility_pi_review: {'1':'Ineligible per I/E','2':'Did not follow up','3':'Not willing','4':'Group closed','5':'Other'},
+  rand_arm: {'1':'AZM-PLA','2':'PLA-AZM'},
+  early_dc_reason: {'1':'Moved away','2':'Not interested','3':'Death','4':'Adverse event','5':'Pregnancy','6':'Non-compliance','7':'Consent withdrawn','8':'Lost to follow-up','9':'Protocol violation','10':'Not a rand candidate','11':'Other'},
+  ae_severity: {'1':'Mild','2':'Moderate','3':'Severe','4':'Life-threatening','5':'Fatal'},
+  ae_related: {'1':'Def. unrelated','2':'Possibly','3':'Probably','4':'Def. related'},
+  ae_outcome: {'1':'Recovered','2':'Recovered w/ sequelae','3':'Recovering','4':'Not recovered','5':'Fatal','6':'Unknown'},
+  ae_ongoing: {'0':'No','1':'Yes'},
+  study_complete: {'0':'No','1':'Yes'},
+};
+// Label → numeric key inverse (for data that arrives pre-labeled from R as_factor)
+const LABEL_TO_KEY = {};
+for (const [field, m] of Object.entries(MAPS)){
+  LABEL_TO_KEY[field] = {};
+  for (const [k,v] of Object.entries(m)) LABEL_TO_KEY[field][v.toLowerCase()] = k;
+}
+
+// Event names (without / with _arm_1 suffix both handled)
+const EVENTS = {
+  screening:'screening_arm_1',
+  baseline:'baseline_arm_1',
+  randomization:'randomization_arm_1',
+  overnight1:'overnight_1_arm_1',
+  overnight2:'overnight_2_arm_1',
+  completion:'study_completion_arm_1',
+  log:'log_forms_arm_1',
+};
+
+// ============================================================================
+//  Helpers
+// ============================================================================
+function toISO(v){
+  if (v == null || v === '') return null;
+  if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+  if (typeof v === 'number'){
+    // Excel serial date
+    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+    if (!isNaN(d)) return d.toISOString().slice(0,10);
+  }
+  const s = String(v).trim();
+  if (!s) return null;
+  // Try native parse
+  const d = new Date(s);
+  if (!isNaN(d)){
+    // Use UTC to avoid timezone drift for date-only strings
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    return d.toISOString().slice(0,10);
+  }
+  return null;
+}
+function normEventName(ev){ if (!ev) return ''; const s = String(ev).toLowerCase(); return s.endsWith('_arm_1') ? s : s + (s.includes('_arm_') ? '' : '_arm_1'); }
+function normFieldValue(field, v){
+  if (v == null || v === '') return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (MAPS[field] && MAPS[field][s]) return s;             // numeric key
+  if (LABEL_TO_KEY[field] && LABEL_TO_KEY[field][s.toLowerCase()]) return LABEL_TO_KEY[field][s.toLowerCase()];
+  return s;
+}
+function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function addDays(d,n){ const c = new Date(d); c.setDate(c.getDate()+n); return c.toISOString().slice(0,10); }
+function addMonths(d,n){ const c = new Date(d); c.setMonth(c.getMonth()+n); return c.toISOString().slice(0,10); }
+function dateDiff(a,b){ return (new Date(b) - new Date(a)) / 86400000; }
+function pct(n,d){ if (!d) return '—'; return `${((n/d)*100).toFixed(0)}%`; }
+function fmtN(v, digits=1){ if (v == null || isNaN(v)) return '—'; return Number(v).toFixed(digits); }
+function quantile(sorted, q){ if (sorted.length === 0) return null; const p = (sorted.length-1)*q; const lo=Math.floor(p), hi=Math.ceil(p); if (lo===hi) return sorted[lo]; return sorted[lo] + (sorted[hi]-sorted[lo])*(p-lo); }
+function med_iqr(arr){
+  const nums = arr.map(Number).filter(x => !isNaN(x));
+  if (nums.length === 0) return {median:null, p25:null, p75:null, min:null, max:null, n:0};
+  const s = nums.slice().sort((a,b)=>a-b);
+  return {median:quantile(s,0.5), p25:quantile(s,0.25), p75:quantile(s,0.75), min:s[0], max:s[s.length-1], n:nums.length};
+}
+
+// ============================================================================
+//  Parse REDCap flat records → subject summaries
+// ============================================================================
+function normalizeRecords(records){
+  return records.map(r => {
+    const out = {...r};
+    out.redcap_event_name = normEventName(r.redcap_event_name);
+    // Convert any date-looking value to ISO
+    for (const k of Object.keys(out)){
+      if (/(date|timestamp|_d1$|_n1$|_n2$)/i.test(k) && out[k] !== '' && out[k] != null){
+        const iso = toISO(out[k]);
+        if (iso) out[k] = iso;
+      }
+    }
+    // Normalize factor fields
+    for (const f of Object.keys(MAPS)){
+      if (out[f] !== undefined) out[f] = normFieldValue(f, out[f]);
+    }
+    return out;
+  });
+}
+
+function indexByRecord(records){
+  const byId = new Map();
+  for (const r of records){
+    const id = r.record_id;
+    if (!id) continue;
+    const sid = String(id);
+    if (!byId.has(sid)) byId.set(sid, []);
+    byId.get(sid).push(r);
+  }
+  return byId;
+}
+function eventVal(rows, event, field){
+  for (const r of rows){ if (r.redcap_event_name === event && r[field] !== undefined && r[field] !== '' && r[field] != null) return r[field]; }
+  return null;
+}
+function firstVal(rows, field){
+  for (const r of rows){ if (r[field] !== undefined && r[field] !== '' && r[field] != null) return r[field]; }
+  return null;
+}
+function buildSubjects(records){
+  const byId = indexByRecord(records);
+  const subjects = [];
+  for (const [id, rows] of byId.entries()){
+    const s = {
+      record_id: id,
+      date_screening: eventVal(rows, EVENTS.screening, 'date_screening') || toISO(eventVal(rows, EVENTS.screening, 'screening_form_timestamp')) || firstVal(rows,'date_screening'),
+      age_screening: parseFloat(eventVal(rows, EVENTS.screening, 'age_screening')) || null,
+      sex: eventVal(rows, EVENTS.screening, 'sex') || firstVal(rows,'sex'),
+      race: eventVal(rows, EVENTS.screening, 'race') || firstVal(rows,'race'),
+      ethnicity: eventVal(rows, EVENTS.screening, 'ethnicity') || firstVal(rows,'ethnicity'),
+      height_in: parseFloat(eventVal(rows, EVENTS.screening, 'height_subject_report')) || null,
+      weight_lb: parseFloat(eventVal(rows, EVENTS.screening, 'weight_subject_report')) || null,
+      bmi: parseFloat(eventVal(rows, EVENTS.screening, 'bmi_subject_report')) || null,
+      meqd_screening: parseFloat(eventVal(rows, EVENTS.screening, 'meqd_screening')) || null,
+      screening_psg_ahi: parseFloat(eventVal(rows, EVENTS.screening, 'screening_psg_ahi')) || null,
+      eligibility_assessment: eventVal(rows, EVENTS.screening, 'eligibility_assessment'),
+      eligibility_pi_review: eventVal(rows, EVENTS.screening, 'eligibility_pi_review'),
+      // Baseline / consent
+      consent_date: eventVal(rows, EVENTS.baseline, 'consent_date') || firstVal(rows,'consent_date'),
+      datetime_d1: eventVal(rows, EVENTS.baseline, 'datetime_d1') || firstVal(rows,'datetime_d1'),
+      baseline_prelim_ahi: parseFloat(eventVal(rows, EVENTS.baseline, 'baseline_prelim_ahi')) || null,
+      meqd: parseFloat(eventVal(rows, EVENTS.baseline, 'meqd')) || null,
+      // Randomization
+      elig_randomization: eventVal(rows, EVENTS.randomization, 'elig_randomization'),
+      rand_arm: eventVal(rows, EVENTS.randomization, 'rand_arm'),
+      rand_date: eventVal(rows, EVENTS.randomization, 'rand_date'),
+      // Overnights
+      date_n1: eventVal(rows, EVENTS.overnight1, 'date_n1') || firstVal(rows,'date_n1'),
+      date_n2: eventVal(rows, EVENTS.overnight2, 'date_n2') || firstVal(rows,'date_n2'),
+      // Completion
+      study_complete: eventVal(rows, EVENTS.completion, 'study_complete'),
+      date_early_dc: eventVal(rows, EVENTS.completion, 'date_early_dc'),
+      early_dc_reason: eventVal(rows, EVENTS.completion, 'early_dc_reason'),
+    };
+    s.baseline_screen_ahi = s.baseline_prelim_ahi || s.screening_psg_ahi;
+    // Fallback BMI from height (in) and weight (lb) if the calc field is empty
+    if (!s.bmi && s.height_in && s.weight_lb){
+      s.bmi = Math.round(((s.weight_lb / (s.height_in*s.height_in)) * 703) * 10) / 10;
+    }
+    // Derived status
+    if (s.study_complete === '1') s.status = 'completed';
+    else if (s.early_dc_reason || s.date_early_dc) s.status = 'withdrawn';
+    else if (s.rand_arm) s.status = 'active';
+    else if (s.consent_date) s.status = 'enrolled';
+    else if (s.eligibility_assessment === '1') s.status = 'eligible';
+    else if (s.eligibility_assessment === '2') s.status = 'screen_fail';
+    else s.status = 'screened';
+    subjects.push(s);
+  }
+  return subjects;
+}
+function buildAEs(records){
+  const out = records.filter(r => r.redcap_event_name === EVENTS.log && (r.ae_details || r.ae_severity || r.ae_date_start));
+  for (const r of out){ r.resolution_status = resolutionLabel(r); }
+  return out;
+}
+function buildPDs(records){ return records.filter(r => r.redcap_event_name === EVENTS.log && (r.pd_details || r.pd_date)); }
+
+// ============================================================================
+//  Sample data generator (realistic enrollment curve for demo / fallback)
+// ============================================================================
+function generateSampleData(){
+  const records = [];
+  const studyStart = new Date('2024-08-01');
+  const today = new Date();
+  const days = Math.floor((today - studyStart) / 86400000);
+  let idCounter = 1001;
+  const n = 54;
+  for (let i=0; i<n; i++){
+    const id = String(idCounter++);
+    const screenDate = addDays(studyStart, randInt(0, Math.max(days-7, 7)));
+    const sex = rand(['0','1','1','0']);
+    const race = rand(['1','3','3','4','4','4','4','5','6']);
+    const ethnicity = rand(['1','2','2','2','2','3']);
+    const age = randInt(35, 72);
+    const meqdS = Math.round((30 + Math.random()*180)*10)/10;
+    const ahiS = Math.round((8 + Math.random()*45)*10)/10;
+
+    let elig_assess, elig_pi=null, consent_date=null, datetime_d1=null, elig_rand=null, rand_arm=null, rand_date=null, date_n1=null, date_n2=null, study_complete=null, date_dc=null, dc_reason=null, meqd=null, baseline_ahi=null;
+    const roll = Math.random();
+    if (roll < 0.28){
+      elig_assess = '2'; elig_pi = rand(['1','1','1','2','2','3','4','5']);
+    } else if (roll < 0.32){
+      elig_assess = '3';
+    } else {
+      elig_assess = '1';
+      if (Math.random() < 0.8){
+        consent_date = addDays(screenDate, randInt(7, 28));
+        datetime_d1 = addDays(consent_date, randInt(1, 14));
+        meqd = Math.round((meqdS * (0.85 + Math.random()*0.3))*10)/10;
+        baseline_ahi = Math.round((ahiS * (0.85 + Math.random()*0.3))*10)/10;
+        if (Math.random() < 0.9){
+          elig_rand = '1'; rand_arm = Math.random()<0.5 ? '1' : '2';
+          rand_date = addDays(consent_date, randInt(2, 14));
+          const daysSinceRand = (today - new Date(rand_date))/86400000;
+          if (daysSinceRand > 10) date_n1 = addDays(rand_date, randInt(7, 21));
+          if (daysSinceRand > 50) date_n2 = addDays(rand_date, randInt(35, 70));
+          if (daysSinceRand > 90){
+            if (Math.random() < 0.85) study_complete = '1';
+            else { study_complete = '0'; date_dc = addDays(rand_date, randInt(20, 80)); dc_reason = rand(['2','4','4','6','7','7','8','11']); }
+          }
+        }
+      }
+    }
+
+    const heightIn = randInt(60, 76);
+    const weightLb = randInt(120, 280);
+    const bmiCalc = Math.round(((weightLb / (heightIn*heightIn)) * 703) * 10) / 10;
+    records.push({record_id:id, redcap_event_name:EVENTS.screening, date_screening:screenDate, sex, race, ethnicity, age_screening:age,
+      height_subject_report:heightIn, weight_subject_report:weightLb, bmi_subject_report:bmiCalc,
+      meqd_screening:meqdS, screening_psg_ahi:ahiS, eligibility_assessment:elig_assess, eligibility_pi_review:elig_pi || ''});
+    if (consent_date){
+      records.push({record_id:id, redcap_event_name:EVENTS.baseline, consent_date, datetime_d1, baseline_prelim_ahi:baseline_ahi || '', meqd:meqd || ''});
+    }
+    if (rand_arm){
+      records.push({record_id:id, redcap_event_name:EVENTS.randomization, elig_randomization:elig_rand, rand_arm, rand_date});
+    }
+    if (date_n1){ records.push({record_id:id, redcap_event_name:EVENTS.overnight1, date_n1}); }
+    if (date_n2){ records.push({record_id:id, redcap_event_name:EVENTS.overnight2, date_n2}); }
+    if (study_complete !== null){
+      records.push({record_id:id, redcap_event_name:EVENTS.completion, study_complete, date_early_dc:date_dc || '', early_dc_reason:dc_reason || ''});
+    }
+    if (rand_arm && Math.random() < 0.4){
+      const nAE = randInt(1, 3);
+      for (let a=0; a<nAE; a++){
+        const aeStart = addDays(rand_date, randInt(1, 60));
+        const outcome = rand(['1','1','1','2','3','4','6']);
+        const ongoing = (outcome === '3' || outcome === '4') ? '1' : '0';
+        const stopDate = ongoing === '0' && outcome !== '6' ? addDays(aeStart, randInt(1, 21)) : '';
+        records.push({record_id:id, redcap_event_name:EVENTS.log, redcap_repeat_instrument:'adverse_events', redcap_repeat_instance:String(a+1),
+          ae_details:rand(['Headache','Paresthesia','Nausea','Insomnia','Fatigue','Dizziness','Metallic taste']),
+          ae_date_start:aeStart,
+          ae_date_stop:stopDate,
+          ae_severity:rand(['1','1','1','2','2','3','3','4']), ae_related:rand(['1','2','2','3','3','4']),
+          ae_outcome:outcome, ae_ongoing:ongoing,
+          sae:Math.random()<0.05?'1':'0'});
+      }
+    }
+    if (rand_arm && Math.random() < 0.15){
+      records.push({record_id:id, redcap_event_name:EVENTS.log, redcap_repeat_instrument:'protocol_deviations', redcap_repeat_instance:'1',
+        pd_details:rand(['Visit out of window','Missed phone call','Dose taken late','Incorrect form completion']),
+        pd_date:addDays(rand_date, randInt(3, 70)),
+        pd_study_event:rand(['2','3','4','5','6','7'])});
+    }
+  }
+  return records;
+}
+
+// ============================================================================
+//  XLSX parsing
+// ============================================================================
+async function parseXlsx(file){
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:'array', cellDates:true});
+  // Find a sheet that has record_id + redcap_event_name
+  let pickedName = null;
+  for (const name of wb.SheetNames){
+    const ws = wb.Sheets[name];
+    const ref = ws['!ref']; if (!ref) continue;
+    const headers = [];
+    const range = XLSX.utils.decode_range(ref);
+    for (let c = range.s.c; c <= range.e.c; c++){
+      const cell = ws[XLSX.utils.encode_cell({r:range.s.r, c})];
+      if (cell && cell.v != null) headers.push(String(cell.v).toLowerCase());
+    }
+    if (headers.includes('record_id') && (headers.includes('redcap_event_name') || headers.includes('redcap_event_name_1'))){
+      pickedName = name; break;
+    }
+  }
+  if (!pickedName) pickedName = wb.SheetNames[0];
+  const ws = wb.Sheets[pickedName];
+  const rows = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false, dateNF:'yyyy-mm-dd'});
+  // Ensure keys are strings we expect
+  return rows.map(r => {
+    const o = {};
+    for (const k of Object.keys(r)) o[String(k).trim()] = r[k];
+    return o;
+  });
+}
+
+// ============================================================================
+//  Application state
+// ============================================================================
+const State = {
+  records: [],
+  subjects: [],
+  aes: [],
+  pds: [],
+  filtered: {subjects:[], aes:[], pds:[]},
+  charts: {},
+  activeTab: 'subjects',
+  sortField: null,
+  sortDir: 'desc',
+  fileHandle: null,
+  filename: null,
+  fileLastModified: null,
+  autoTimer: null,
+};
+
+function setStatus(kind, text){ document.getElementById('status-dot').className='status-dot '+kind; document.getElementById('status-text').textContent=text; }
+function showBanner(kind, html){ const b=document.getElementById('banner'); b.className='banner '+kind; b.innerHTML=html; b.classList.remove('hidden'); }
+function hideBanner(){ document.getElementById('banner').classList.add('hidden'); }
+function saveLastRefreshed(){
+  const t = new Date();
+  document.getElementById('footer-refreshed').textContent = 'loaded ' + t.toLocaleString();
+}
+
+function loadRecords(records, sourceLabel, kind='live'){
+  const normalized = normalizeRecords(records);
+  State.records = normalized;
+  State.subjects = buildSubjects(normalized);
+  State.aes = buildAEs(normalized);
+  State.pds = buildPDs(normalized);
+  setStatus(kind, `${sourceLabel} · ${normalized.length} rows · ${State.subjects.length} subjects`);
+  document.getElementById('footer-count').textContent = normalized.length;
+  saveLastRefreshed();
+  // Study start defaults to earliest screened subject; user overrides persist across refreshes
+  const cfgStart = document.getElementById('cfg-start');
+  if (!cfgStart.dataset.userSet){
+    const allDates = State.subjects.map(s => s.date_screening).filter(Boolean).sort();
+    if (allDates.length) cfgStart.value = allDates[0];
+  }
+  applyFilters();
+}
+
+// ============================================================================
+//  Filtering & rendering
+// ============================================================================
+function applyFilters(){
+  const ds = document.getElementById('f-date-start').value;
+  const de = document.getElementById('f-date-end').value;
+  const arm = document.getElementById('f-arm').value;
+  const sex = document.getElementById('f-sex').value;
+  const status = document.getElementById('f-status').value;
+  State.filtered.subjects = State.subjects.filter(s => {
+    if (ds && s.date_screening && s.date_screening < ds) return false;
+    if (de && s.date_screening && s.date_screening > de) return false;
+    if (arm !== 'all' && s.rand_arm !== arm) return false;
+    if (sex !== 'all' && s.sex !== sex) return false;
+    if (status !== 'all' && s.status !== status) return false;
+    return true;
+  });
+  const keepIds = new Set(State.filtered.subjects.map(s => s.record_id));
+  State.filtered.aes = State.aes.filter(r => keepIds.has(String(r.record_id)));
+  State.filtered.pds = State.pds.filter(r => keepIds.has(String(r.record_id)));
+  renderKPIs();
+  renderSparks();
+  renderScreeningCharts();
+  renderTargetCharts();
+  renderDemoCharts();
+  renderReasonCharts();
+  renderStatGrid();
+  renderTimeline();
+  renderTable();
+}
+
+function renderKPIs(){
+  const subs = State.filtered.subjects;
+  const screened = subs.length;
+  const screenFail = subs.filter(s => s.eligibility_assessment === '2').length;
+  const eligible = subs.filter(s => s.eligibility_assessment === '1').length;
+  const enrolled = subs.filter(s => s.consent_date).length;
+  const randomized = subs.filter(s => s.rand_arm).length;
+  const active = subs.filter(s => s.status === 'active').length;
+  const completed = subs.filter(s => s.status === 'completed').length;
+  const withdrawn = subs.filter(s => s.status === 'withdrawn').length;
+  const set = (id, v, sub) => { document.getElementById('kpi-'+id).textContent = v; document.getElementById('kpi-'+id+'-sub').textContent = sub; };
+  set('screened', screened, `${screenFail} screen fails · ${pct(screenFail,screened)} fail rate`);
+  set('eligible', eligible, `${pct(eligible,screened)} of screened`);
+  set('enrolled', enrolled, `${pct(enrolled,eligible)} of eligible consented`);
+  set('randomized', randomized, `${pct(randomized,enrolled)} of enrolled`);
+  set('active', active, `${withdrawn} withdrawn early`);
+  set('completed', completed, `${pct(completed,randomized)} of randomized`);
+}
+
+// ============================================================================
+//  Sparklines (tiny line charts on KPI cards)
+// ============================================================================
+function destroyChart(key){ if (State.charts[key]){ State.charts[key].destroy(); delete State.charts[key]; } }
+
+function weeklyCounts(subs, getDate, filterFn){
+  const counts = {};
+  const src = filterFn ? subs.filter(filterFn) : subs;
+  for (const s of src){
+    const d = getDate(s); if (!d) continue;
+    // Bucket to ISO week start (Monday)
+    const dt = new Date(d); const day = dt.getUTCDay();
+    const monday = new Date(dt); monday.setUTCDate(dt.getUTCDate() - ((day+6)%7));
+    const key = monday.toISOString().slice(0,10);
+    counts[key] = (counts[key]||0) + 1;
+  }
+  return counts;
+}
+function fillWeeks(counts, start){
+  const keys = Object.keys(counts).sort();
+  if (keys.length === 0) return {labels:[], values:[]};
+  const first = start ? new Date(start) : new Date(keys[0]);
+  first.setUTCDate(first.getUTCDate() - ((first.getUTCDay()+6)%7));
+  const last = new Date(); last.setUTCDate(last.getUTCDate() - ((last.getUTCDay()+6)%7));
+  const labels = []; const values = [];
+  for (let d = new Date(first); d <= last; d.setUTCDate(d.getUTCDate()+7)){
+    const k = d.toISOString().slice(0,10);
+    labels.push(k); values.push(counts[k]||0);
+  }
+  return {labels, values};
+}
+function cumulative(arr){ let s=0; return arr.map(v => s += v); }
+
+function drawSpark(canvasId, values, color){
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  State.charts[canvasId] = new Chart(ctx, {
+    type:'line',
+    data:{labels:values.map((_,i)=>i), datasets:[{data:values, borderColor:color, backgroundColor:color+'22', borderWidth:1.5, fill:true, tension:0.3, pointRadius:0}]},
+    options:{responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{display:false}, tooltip:{enabled:false}},
+      scales:{x:{display:false}, y:{display:false, beginAtZero:true}},
+      elements:{line:{borderJoinStyle:'round'}}}
+  });
+}
+
+function renderSparks(){
+  const subs = State.filtered.subjects;
+  const startCfg = document.getElementById('cfg-start').value || null;
+  const screenedW = fillWeeks(weeklyCounts(subs, s => s.date_screening), startCfg);
+  const eligibleW = fillWeeks(weeklyCounts(subs, s => s.date_screening, s => s.eligibility_assessment === '1'), startCfg);
+  const enrolledW = fillWeeks(weeklyCounts(subs, s => s.consent_date), startCfg);
+  const randomizedW = fillWeeks(weeklyCounts(subs, s => s.rand_date), startCfg);
+  const activeW = cumulative(randomizedW.values).map((v,i) => v - cumulative(fillWeeks(weeklyCounts(subs, s => s.date_early_dc || (s.status==='completed' ? s.rand_date : null)), startCfg).values)[i] || 0);
+  const completedW = fillWeeks(weeklyCounts(subs, s => s.status === 'completed' ? s.rand_date : null), startCfg);
+  drawSpark('spark-screened', cumulative(screenedW.values), COLORS[0]);
+  drawSpark('spark-eligible', cumulative(eligibleW.values), COLORS[1]);
+  drawSpark('spark-enrolled', cumulative(enrolledW.values), COLORS[2]);
+  drawSpark('spark-randomized', cumulative(randomizedW.values), COLORS[3]);
+  drawSpark('spark-active', activeW.map(v => Math.max(v,0)), COLORS[5]);
+  drawSpark('spark-completed', cumulative(completedW.values), COLORS[4]);
+}
+
+// ============================================================================
+//  Screening charts (cumulative by eligibility)
+// ============================================================================
+function renderScreeningCharts(){
+  renderCumScreen();
+}
+function renderCumScreen(){
+  destroyChart('cum_screen');
+  const subs = State.filtered.subjects;
+  const startCfg = (document.getElementById('cfg-start').value || '').trim();
+  const screenDates = subs.map(s => s.date_screening).filter(Boolean).sort();
+  const startDate = startCfg || screenDates[0] || null;
+  if (!startDate){
+    const ctx = document.getElementById('chart-cum-screen').getContext('2d');
+    State.charts.cum_screen = new Chart(ctx, {type:'line', data:{datasets:[]}, options:{responsive:true, maintainAspectRatio:false}});
+    return;
+  }
+  const byDateElig = {};
+  for (const s of subs){
+    if (!s.date_screening) continue;
+    if (s.date_screening < startDate) continue;
+    const lbl = MAPS.eligibility_assessment[s.eligibility_assessment] || 'Other';
+    byDateElig[lbl] = byDateElig[lbl] || {};
+    byDateElig[lbl][s.date_screening] = (byDateElig[lbl][s.date_screening]||0) + 1;
+  }
+  const allDates = [...new Set(subs.map(s=>s.date_screening).filter(d => d && d >= startDate))].sort();
+  // Anchor every series at the study start with y=0 so the x-axis begins there
+  const anchor = startDate;
+  const datasets = Object.keys(byDateElig).map((lbl,i) => {
+    let cum = 0;
+    const data = [{x:anchor, y:0}];
+    for (const d of allDates){
+      if (byDateElig[lbl][d]){ cum += byDateElig[lbl][d]; data.push({x:d, y:cum}); }
+    }
+    return {label:lbl, data, borderColor:ELIG_COLORS[lbl]||COLORS[i%COLORS.length], backgroundColor:(ELIG_COLORS[lbl]||COLORS[i%COLORS.length])+'22', borderWidth:2, stepped:true, pointRadius:0, fill:false};
+  });
+  const ctx = document.getElementById('chart-cum-screen').getContext('2d');
+  State.charts.cum_screen = new Chart(ctx, {
+    type:'line',
+    data:{datasets},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,padding:10,font:{size:11}}}},
+      scales:{
+        x:{type:'time', min:startDate, time:{unit:'month',displayFormats:{month:'MMM yy'}}, grid:{display:false}},
+        y:{beginAtZero:true, ticks:{precision:0}}
+      }}
+  });
+}
+
+// ============================================================================
+//  Target-line charts (cumulative enrolled / randomized vs target)
+// ============================================================================
+function buildCumSeries(subs, dateField){
+  const dates = subs.map(s => s[dateField]).filter(Boolean).sort();
+  let cum = 0; const out = [];
+  // Group by date
+  const byD = {};
+  for (const d of dates){ byD[d] = (byD[d]||0) + 1; }
+  const sortedD = Object.keys(byD).sort();
+  for (const d of sortedD){ cum += byD[d]; out.push({x:d, y:cum}); }
+  return out;
+}
+function renderTargetCharts(){
+  const start = document.getElementById('cfg-start').value;
+  const targetEnroll = parseInt(document.getElementById('cfg-target-enroll').value) || 50;
+  const targetRand = parseInt(document.getElementById('cfg-target-rand').value) || 38;
+  const months = parseInt(document.getElementById('cfg-target-months').value) || 18;
+  const startDate = start || (State.subjects.map(s=>s.date_screening).filter(Boolean).sort()[0]);
+  if (!startDate){ destroyChart('cum_enroll'); destroyChart('cum_rand'); return; }
+  const targetEnd = addMonths(startDate, months);
+  const today = new Date().toISOString().slice(0,10);
+  renderTargetChart('cum_enroll', 'chart-cum-enroll', State.filtered.subjects, 'consent_date', startDate, targetEnd, targetEnroll, 'Enrolled', COLORS[2], 'enroll-target-sub');
+  renderTargetChart('cum_rand', 'chart-cum-rand', State.filtered.subjects, 'rand_date', startDate, targetEnd, targetRand, 'Randomized', COLORS[3], 'rand-target-sub');
+}
+function renderTargetChart(key, canvasId, subs, dateField, startDate, targetEnd, targetN, label, color, subEl){
+  destroyChart(key);
+  const actual = buildCumSeries(subs, dateField);
+  const today = new Date().toISOString().slice(0,10);
+  const targetLine = [{x:startDate, y:0}, {x:targetEnd, y:targetN}];
+  // Compute pace stats
+  const currentN = actual.length ? actual[actual.length - 1].y : 0;
+  const totalDays = dateDiff(startDate, targetEnd);
+  const elapsed = Math.max(dateDiff(startDate, today), 1);
+  const expected = Math.min(targetN * (elapsed/totalDays), targetN);
+  const paceDiff = currentN - expected;
+  const monthsRem = (totalDays - elapsed) / 30;
+  const needed = Math.max((targetN - currentN) / Math.max(monthsRem, 0.1), 0);
+  document.getElementById(subEl).innerHTML =
+    `Target <strong>${targetN}</strong> by <strong>${new Date(targetEnd).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</strong>` +
+    ` · currently <strong>${currentN}</strong>` +
+    ` · <span style="color:${paceDiff>=0?'var(--positive)':'var(--negative)'}">${paceDiff>=0?'+':''}${paceDiff.toFixed(1)} vs expected</span>` +
+    ` · need <strong>${needed.toFixed(1)}/mo</strong> to hit target`;
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  State.charts[key] = new Chart(ctx, {
+    type:'line',
+    data:{datasets:[
+      {label:`Cumulative ${label.toLowerCase()}`, data:actual, borderColor:color, backgroundColor:color+'22', borderWidth:2, stepped:true, pointRadius:0, fill:true},
+      {label:'Linear target', data:targetLine, borderColor:'#dc2626', borderDash:[6,4], borderWidth:1.5, pointRadius:0, fill:false},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,padding:10,font:{size:11}}},
+        annotation:{}
+      },
+      scales:{x:{type:'time',time:{unit:'month',displayFormats:{month:'MMM yy'}}, min:startDate, max:targetEnd, grid:{display:false}}, y:{beginAtZero:true, max:targetN*1.15, ticks:{precision:0}}}
+    }
+  });
+}
+
+// ============================================================================
+//  Demographics / clinical charts
+// ============================================================================
+function categoricalCounts(subs, field){
+  const counts = {};
+  for (const s of subs){
+    if (!s[field]) continue;
+    const lbl = MAPS[field] && MAPS[field][s[field]] ? MAPS[field][s[field]] : s[field];
+    counts[lbl] = (counts[lbl]||0) + 1;
+  }
+  return counts;
+}
+function renderDoughnut(key, canvasId, counts){
+  destroyChart(key);
+  const labels = Object.keys(counts);
+  const data = labels.map(l => counts[l]);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  State.charts[key] = new Chart(ctx, {
+    type:'doughnut',
+    data:{labels, datasets:[{data, backgroundColor:labels.map((_,i)=>COLORS[i%COLORS.length]), borderColor:'#fff', borderWidth:2}]},
+    options:{responsive:true, maintainAspectRatio:false, cutout:'58%',
+      plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:7,padding:6,font:{size:10}}}}}
+  });
+}
+function renderHorizBar(key, canvasId, counts, color){
+  destroyChart(key);
+  const labels = Object.keys(counts);
+  const data = labels.map(l => counts[l]);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  State.charts[key] = new Chart(ctx, {
+    type:'bar',
+    data:{labels, datasets:[{data, backgroundColor:color+'cc', borderColor:color, borderWidth:1, borderRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=>`${c.parsed.x}`}}},
+      scales:{x:{beginAtZero:true,ticks:{precision:0}}, y:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+}
+function renderHistogram(key, canvasId, values, binCount, color, xLabel){
+  destroyChart(key);
+  const nums = values.map(Number).filter(x=>!isNaN(x));
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if (nums.length === 0){
+    State.charts[key] = new Chart(ctx, {type:'bar', data:{labels:[], datasets:[]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}});
+    return;
+  }
+  const mn = Math.min(...nums), mx = Math.max(...nums);
+  const bins = binCount || Math.min(15, Math.max(5, Math.ceil(Math.sqrt(nums.length))));
+  const width = (mx-mn)/bins || 1;
+  const counts = new Array(bins).fill(0);
+  for (const v of nums){ let i = Math.floor((v-mn)/width); if (i >= bins) i = bins-1; counts[i]++; }
+  const labels = counts.map((_,i) => { const lo = mn+i*width, hi = lo+width; return `${lo.toFixed(0)}–${hi.toFixed(0)}`; });
+  State.charts[key] = new Chart(ctx, {
+    type:'bar',
+    data:{labels, datasets:[{data:counts, backgroundColor:color+'cc', borderColor:color, borderWidth:1, borderRadius:2}]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{title:(c)=>`${xLabel}: ${c[0].label}`,label:(c)=>`n = ${c.parsed.y}`}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:10}}}, y:{beginAtZero:true,ticks:{precision:0},title:{display:true,text:'Count',font:{size:10}}}}}
+  });
+}
+// Color palette for randomization status stacks (used in Participant characteristics)
+const RAND_STACK_COLORS = {
+  'Randomized':     { bg: '#16a34a', border: '#15803d' },
+  'Not randomized': { bg: '#ca8a04', border: '#a16207' },
+};
+function splitByRand(subs){
+  return {
+    rand:    subs.filter(s => s.rand_arm),
+    notRand: subs.filter(s => !s.rand_arm),
+  };
+}
+
+function renderDemoCharts(){
+  // Participant characteristics = ENROLLED participants only (consent signed)
+  const enrolled = State.filtered.subjects.filter(s => s.consent_date);
+
+  // Categorical: horizontal stacked bars by randomized / not randomized
+  renderStackedCatBar('sex',  'chart-sex',  enrolled, 'sex');
+  renderStackedCatBar('race', 'chart-race', enrolled, 'race');
+  renderStackedCatBar('eth',  'chart-eth',  enrolled, 'ethnicity');
+
+  // Enrollment/randomization breakdown — three-slice doughnut
+  const enrolledPreRand = enrolled.filter(s => !s.rand_arm).length;
+  const arm1 = enrolled.filter(s => s.rand_arm === '1').length;
+  const arm2 = enrolled.filter(s => s.rand_arm === '2').length;
+  const enrollRandCounts = {};
+  if (enrolledPreRand) enrollRandCounts['Enrolled (pre-rand)'] = enrolledPreRand;
+  if (arm1) enrollRandCounts['AZM-PLA'] = arm1;
+  if (arm2) enrollRandCounts['PLA-AZM'] = arm2;
+  renderDoughnut('arm', 'chart-arm', enrollRandCounts);
+
+  // Histograms: vertical stacked bars by randomized / not randomized
+  renderStackedHistogram('ahi', 'chart-ahi', enrolled, 'baseline_screen_ahi',
+    [0,5,15,30,60,Infinity], ['0–5','5–15','15–30','30–60','60+'], 'AHI (events/hr)');
+  renderStackedHistogram('meqd', 'chart-meqd', enrolled, 'meqd_screening',
+    [0,20,50,90,200,Infinity], ['0–20','20–50','50–90','90–200','200+'], 'MEQD (mg/day)');
+}
+
+// Horizontal stacked bar grouped by a categorical field, stacked by rand status
+function renderStackedCatBar(key, canvasId, enrolled, field){
+  destroyChart(key);
+  const map = MAPS[field] || {};
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  // Collect labels in display order (known map order first, then any extras)
+  const order = Object.values(map);
+  const seen = new Set();
+  const labels = [];
+  for (const s of enrolled){
+    const raw = s[field]; if (raw == null || raw === '') continue;
+    const lbl = map[raw] || String(raw);
+    if (!seen.has(lbl)){ seen.add(lbl); labels.push(lbl); }
+  }
+  // Keep map order where possible
+  labels.sort((a,b) => {
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+  const {rand, notRand} = splitByRand(enrolled);
+  const labelOf = (s) => {
+    const raw = s[field]; if (raw == null || raw === '') return null;
+    return map[raw] || String(raw);
+  };
+  const countBy = (arr) => labels.map(lbl => arr.filter(s => labelOf(s) === lbl).length);
+  const randData = countBy(rand), notData = countBy(notRand);
+  State.charts[key] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Randomized', data:randData, backgroundColor:RAND_STACK_COLORS['Randomized'].bg+'cc', borderColor:RAND_STACK_COLORS['Randomized'].border, borderWidth:1, borderRadius:3, stack:'s'},
+        {label:'Not randomized', data:notData, backgroundColor:RAND_STACK_COLORS['Not randomized'].bg+'cc', borderColor:RAND_STACK_COLORS['Not randomized'].border, borderWidth:1, borderRadius:3, stack:'s'},
+      ],
+    },
+    options:{responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{legend:{position:'top', labels:{usePointStyle:true, boxWidth:8, padding:8, font:{size:10}}},
+               tooltip:{mode:'index', intersect:false}},
+      scales:{
+        x:{beginAtZero:true, stacked:true, ticks:{precision:0}},
+        y:{stacked:true, grid:{display:false}, ticks:{font:{size:10}}}
+      }}
+  });
+}
+
+// Vertical stacked histogram with fixed bin edges, stacked by rand status
+function renderStackedHistogram(key, canvasId, enrolled, field, edges, labels, xLabel){
+  destroyChart(key);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  const binIndex = (v) => {
+    for (let i = 0; i < labels.length; i++){
+      const lo = edges[i], hi = edges[i+1];
+      if (v >= lo && v < hi) return i;
+    }
+    return -1;
+  };
+  const randCounts = new Array(labels.length).fill(0);
+  const notCounts  = new Array(labels.length).fill(0);
+  for (const s of enrolled){
+    const v = Number(s[field]); if (isNaN(v)) continue;
+    const i = binIndex(v); if (i < 0) continue;
+    if (s.rand_arm) randCounts[i]++;
+    else notCounts[i]++;
+  }
+  State.charts[key] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Randomized', data:randCounts, backgroundColor:RAND_STACK_COLORS['Randomized'].bg+'cc', borderColor:RAND_STACK_COLORS['Randomized'].border, borderWidth:1, borderRadius:2, stack:'s'},
+        {label:'Not randomized', data:notCounts, backgroundColor:RAND_STACK_COLORS['Not randomized'].bg+'cc', borderColor:RAND_STACK_COLORS['Not randomized'].border, borderWidth:1, borderRadius:2, stack:'s'},
+      ],
+    },
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top', labels:{usePointStyle:true, boxWidth:8, padding:8, font:{size:10}}},
+               tooltip:{mode:'index', intersect:false,
+                 callbacks:{title:(c)=>`${xLabel}: ${c[0].label}`}}},
+      scales:{
+        x:{stacked:true, grid:{display:false}, ticks:{font:{size:10}}},
+        y:{beginAtZero:true, stacked:true, ticks:{precision:0}, title:{display:true, text:'Count', font:{size:10}}}
+      }}
+  });
+}
+
+// ============================================================================
+//  Summary statistics (with sparklines showing trend over time)
+// ============================================================================
+function rollingMean(sortedBy, key, window){
+  // Input: array sorted by a date field; returns rolling mean of the numeric key
+  const out = [];
+  for (let i = 0; i < sortedBy.length; i++){
+    const lo = Math.max(0, i - window + 1);
+    const slice = sortedBy.slice(lo, i+1).map(r => r[key]).filter(x => x != null && !isNaN(x));
+    if (slice.length === 0) out.push(null);
+    else out.push(slice.reduce((a,b)=>a+b,0)/slice.length);
+  }
+  return out;
+}
+function renderStatGrid(){
+  // Participant Characteristics — only include participants who have enrolled (signed consent)
+  const subs = State.filtered.subjects.filter(s => s.consent_date)
+    .slice().sort((a,b) => (a.date_screening||'').localeCompare(b.date_screening||''));
+  const variables = [
+    {label:'Age at screening (yr)', key:'age_screening', sparkColor:COLORS[0], kind:'num'},
+    {label:'BMI (kg/m²)', key:'bmi', sparkColor:COLORS[6], kind:'num'},
+    {label:'Sex', key:'sex', sparkColor:null, kind:'cat', map: MAPS.sex},
+    {label:'MEQD at screening (mg/d)', key:'meqd_screening', sparkColor:COLORS[3], kind:'num'},
+    {label:'AHI — baseline/screening', key:'baseline_screen_ahi', sparkColor:COLORS[1], kind:'num'},
+    {label:'AHI — screening PSG', key:'screening_psg_ahi', sparkColor:COLORS[2], kind:'num'},
+  ];
+  const grid = document.getElementById('stat-grid');
+  grid.innerHTML = '';
+  grid.insertAdjacentHTML('beforeend', `<div class="sg-header">Variable</div><div class="sg-header" style="text-align:right">Summary</div><div class="sg-header" style="text-align:right">Trend</div>`);
+  variables.forEach((v, i) => {
+    const sparkId = `stat-spark-${i}`;
+    let summaryStr;
+    if (v.kind === 'num'){
+      const vals = subs.map(s => s[v.key]).filter(x => x != null && !isNaN(x));
+      const st = med_iqr(vals);
+      summaryStr = st.n ? `${fmtN(st.median,1)} [${fmtN(st.p25,1)}, ${fmtN(st.p75,1)}] (n=${st.n})` : '—';
+    } else {
+      // Categorical: show n and % of each level present
+      const counts = {}; let total = 0;
+      for (const s of subs){
+        const raw = s[v.key]; if (raw == null || raw === '') continue;
+        const label = (v.map && v.map[raw]) || String(raw);
+        counts[label] = (counts[label] || 0) + 1;
+        total++;
+      }
+      const parts = Object.entries(counts).sort((a,b) => b[1] - a[1])
+        .map(([l,n]) => `${l} ${n} (${total ? Math.round(n/total*100) : 0}%)`);
+      summaryStr = parts.length ? `${parts.join(' · ')} — n=${total}` : '—';
+    }
+    grid.insertAdjacentHTML('beforeend',
+      `<div class="sg-label">${v.label}</div>` +
+      `<div class="sg-value">${summaryStr}</div>` +
+      `<div><div class="sg-spark-wrap"><canvas id="${sparkId}"></canvas></div></div>`);
+    if (v.kind === 'num'){
+      const rm = rollingMean(subs, v.key, 10).filter(x => x != null);
+      if (rm.length > 1){
+        requestAnimationFrame(() => drawSpark(sparkId, rm, v.sparkColor));
+      }
+    } else {
+      // For sex, spark shows proportion of the reference level (first key in map) over enrollment order
+      const refKey = v.map ? Object.keys(v.map)[0] : null;
+      if (refKey){
+        const vals = subs.map(s => s[v.key] === refKey ? 1 : (s[v.key] ? 0 : null));
+        const rm = rollingMean(vals.map((x,i)=>({[v.key]:x})), v.key, 10).filter(x => x != null);
+        if (rm.length > 1){
+          requestAnimationFrame(() => drawSpark(sparkId, rm, COLORS[0]));
+        }
+      }
+    }
+  });
+}
+
+// ============================================================================
+//  Reasons charts (screen fail, early DC, AE severity)
+// ============================================================================
+function renderReasonCharts(){
+  const subs = State.filtered.subjects;
+  const sf = {};
+  for (const s of subs){ if (s.eligibility_assessment==='2' && s.eligibility_pi_review){ const l = MAPS.eligibility_pi_review[s.eligibility_pi_review]||'Other'; sf[l] = (sf[l]||0)+1; } }
+  renderHorizBar('screenfail','chart-screenfail', sf, COLORS[4]);
+  const dc = {};
+  for (const s of subs){ if (s.early_dc_reason){ const l = MAPS.early_dc_reason[s.early_dc_reason]||'Other'; dc[l] = (dc[l]||0)+1; } }
+  renderHorizBar('dc','chart-dc', dc, COLORS[3]);
+  // AE severity x resolution status — stacked
+  const sevLabels = ['Mild','Moderate','Severe','Life-threatening','Fatal'];
+  const resLabels = ['Resolved','Ongoing','Unknown'];
+  const counts = {}; // {sev: {res: n}}
+  sevLabels.forEach(s => { counts[s] = {Resolved:0, Ongoing:0, Unknown:0}; });
+  for (const a of State.filtered.aes){
+    const sev = MAPS.ae_severity[a.ae_severity]; if (!sev) continue;
+    const res = resolutionLabel(a);
+    counts[sev][res] = (counts[sev][res]||0) + 1;
+  }
+  destroyChart('ae');
+  const resColors = {Resolved:'#16a34a', Ongoing:'#ca8a04', Unknown:'#94a3b8'};
+  const datasets = resLabels.map(r => ({
+    label: r,
+    data: sevLabels.map(s => counts[s][r] || 0),
+    backgroundColor: resColors[r] + 'cc',
+    borderColor: resColors[r],
+    borderWidth: 1,
+    borderRadius: 2,
+    stack: 'ae',
+  }));
+  const ctx = document.getElementById('chart-ae').getContext('2d');
+  State.charts.ae = new Chart(ctx, {
+    type:'bar',
+    data:{labels: sevLabels, datasets},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top', labels:{usePointStyle:true, boxWidth:8, padding:8, font:{size:10}}}, tooltip:{mode:'index', intersect:false}},
+      scales:{y:{beginAtZero:true, stacked:true, ticks:{precision:0}}, x:{stacked:true, grid:{display:false}, ticks:{font:{size:10}}}}}
+  });
+}
+
+// Derive a resolution status for an AE row
+function resolutionLabel(a){
+  const oc = a.ae_outcome;
+  if (oc === '1' || oc === '2') return 'Resolved';
+  if (oc === '3' || oc === '4' || oc === '5') return 'Ongoing';
+  if (oc === '6') return 'Unknown';
+  // Fallback: use ae_ongoing yesno or presence of ae_date_stop
+  if (a.ae_ongoing === '1') return 'Ongoing';
+  if (a.ae_ongoing === '0' || a.ae_date_stop) return 'Resolved';
+  return 'Unknown';
+}
+
+// ============================================================================
+//  Participant timelines
+// ============================================================================
+function renderTimeline(){
+  const el = document.getElementById('timeline');
+  const subs = State.filtered.subjects.filter(s => s.consent_date || s.rand_date || s.date_n1 || s.date_n2);
+  if (subs.length === 0){ el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-secondary);font-size:12px">No enrolled participants in current filter</div>'; return; }
+  // Domain: min of any event date to max
+  const allDates = [];
+  for (const s of subs){ for (const k of ['consent_date','datetime_d1','rand_date','date_n1','date_n2','date_early_dc']){ if (s[k]) allDates.push(s[k]); } }
+  allDates.push(new Date().toISOString().slice(0,10));
+  const minD = new Date(Math.min(...allDates.map(d => new Date(d)))); const maxD = new Date(Math.max(...allDates.map(d => new Date(d))));
+  const domainMs = maxD - minD || 1;
+  const statusOrder = ['active','enrolled','completed','withdrawn'];
+  const statusLabels = {active:'Active on study', enrolled:'Enrolled (pre-randomization)', completed:'Completed', withdrawn:'Withdrawn / early DC'};
+  const grouped = {active:[], enrolled:[], completed:[], withdrawn:[]};
+  for (const s of subs){
+    if (grouped[s.status]) grouped[s.status].push(s);
+    else if (s.rand_arm) grouped.active.push(s);
+    else grouped.enrolled.push(s);
+  }
+  const toX = (d) => d ? ((new Date(d) - minD) / domainMs * 100) : null;
+  const evColors = {'consent':'evt-consent','day1':'evt-day1','rand':'evt-rand','n1':'evt-n1','n2':'evt-n2'};
+  let html = '';
+  for (const st of statusOrder){
+    const group = grouped[st];
+    if (group.length === 0) continue;
+    html += `<div class="timeline-group"><div class="timeline-group-label">${statusLabels[st]} (n=${group.length})</div>`;
+    group.sort((a,b) => (a.consent_date||'9999').localeCompare(b.consent_date||'9999'));
+    for (const s of group){
+      const events = [
+        {key:'consent', d:s.consent_date, lbl:'Consent'},
+        {key:'day1', d:s.datetime_d1, lbl:'Day 1'},
+        {key:'rand', d:s.rand_date, lbl:'Randomized'},
+        {key:'n1', d:s.date_n1, lbl:'Night 1'},
+        {key:'n2', d:s.date_n2, lbl:'Night 2'},
+      ].filter(e => e.d);
+      if (events.length === 0) continue;
+      const xs = events.map(e => toX(e.d));
+      const minX = Math.min(...xs); const maxX = Math.max(...xs);
+      html += `<div class="timeline-row"><div class="timeline-id">${s.record_id}</div><div class="timeline-track">`;
+      if (events.length > 1){
+        html += `<div class="timeline-line" style="left:${minX}%; width:${maxX-minX}%"></div>`;
+      }
+      for (const e of events){
+        const x = toX(e.d);
+        html += `<div class="timeline-event ${evColors[e.key]}" style="left:${x}%" title="${s.record_id} · ${e.lbl} · ${e.d}"></div>`;
+      }
+      html += `</div></div>`;
+    }
+    html += `</div>`;
+  }
+  // Axis labels (rough)
+  const ticks = 4;
+  const step = domainMs / ticks;
+  const axisHtml = [];
+  for (let i = 0; i <= ticks; i++){
+    const d = new Date(minD.getTime() + step * i);
+    axisHtml.push(`<span>${d.toLocaleDateString(undefined,{month:'short',year:'2-digit'})}</span>`);
+  }
+  html += `<div class="timeline-axis">${axisHtml.join('')}</div>`;
+  html += `<div class="timeline-legend">
+    <span><span class="dot" style="background:#2563eb"></span>Consent</span>
+    <span><span class="dot" style="background:#0891b2"></span>Day 1</span>
+    <span><span class="dot" style="background:#16a34a"></span>Randomized</span>
+    <span><span class="dot" style="background:#ca8a04"></span>Night 1</span>
+    <span><span class="dot" style="background:#dc2626"></span>Night 2</span>
+  </div>`;
+  el.innerHTML = html;
+}
+
+// ============================================================================
+//  Tables with mini-sparklines
+// ============================================================================
+function renderBadge(text, cls){ return `<span class="badge ${cls||''}">${text||''}</span>`; }
+const STATUS_OPTIONS = [
+  {v:'screened', l:'Screened only'},
+  {v:'screen_fail', l:'Screen fail'},
+  {v:'eligible', l:'Eligible (pre-enroll)'},
+  {v:'enrolled', l:'Enrolled (pre-rand)'},
+  {v:'active', l:'Active (on-study)'},
+  {v:'completed', l:'Completed'},
+  {v:'withdrawn', l:'Withdrawn / early DC'},
+];
+const TABLE_COLS = {
+  subjects: [
+    {field:'record_id', label:'ID'},
+    {field:'date_screening', label:'Screened'},
+    {field:'sex', label:'Sex', render:v => MAPS.sex[v]||'', enumMap:MAPS.sex},
+    {field:'age_screening', label:'Age', render:v => v ? fmtN(v,0) : ''},
+    {field:'status', label:'Status', render:v => renderBadge(v==='eligible'?'Eligible':v, v==='eligible'?'eligible-status':v),
+      enumOptions: STATUS_OPTIONS.map(o => ({v:o.v, l:o.l}))},
+    {field:'rand_arm', label:'Arm', render:v => v ? renderBadge(MAPS.rand_arm[v]||'','arm-'+v) : '', enumMap:MAPS.rand_arm},
+    {field:'consent_date', label:'Consent'},
+    {field:'rand_date', label:'Randomized'},
+    {field:'date_n1', label:'Night 1'},
+    {field:'date_n2', label:'Night 2'},
+    {field:'meqd_screening', label:'MEQD', render:v => v ? fmtN(v,0) : ''},
+    {field:'baseline_screen_ahi', label:'AHI', render:v => v ? fmtN(v,1) : ''},
+  ],
+  aes: [
+    {field:'record_id', label:'Record ID'},
+    {field:'ae_date_start', label:'Start'},
+    {field:'ae_date_stop', label:'Stop'},
+    {field:'ae_details', label:'Event'},
+    {field:'ae_severity', label:'Severity', render:v => v ? renderBadge(MAPS.ae_severity[v]||'','sev-'+v) : '', enumMap:MAPS.ae_severity},
+    {field:'ae_outcome', label:'Outcome', render:v => MAPS.ae_outcome[v]||'', enumMap:MAPS.ae_outcome},
+    {field:'resolution_status', label:'Resolved?',
+      render:v => {
+        if (!v) return '';
+        const cls = v==='Resolved' ? 'completed' : v==='Ongoing' ? 'active' : 'screened';
+        return renderBadge(v, cls);
+      },
+      enumOptions:[{v:'Resolved',l:'Resolved'},{v:'Ongoing',l:'Ongoing'},{v:'Unknown',l:'Unknown'}]},
+    {field:'ae_related', label:'Relatedness', render:v => MAPS.ae_related[v]||'', enumMap:MAPS.ae_related},
+    {field:'sae', label:'SAE', render:v => v==='1' ? '<strong style="color:#dc2626">Yes</strong>' : 'No',
+      enumOptions:[{v:'1',l:'Yes'},{v:'0',l:'No'}]},
+  ],
+  pds: [
+    {field:'record_id', label:'Record ID'},
+    {field:'pd_date', label:'Date'},
+    {field:'pd_details', label:'Deviation'},
+    {field:'pd_study_event', label:'Event'},
+  ],
+};
+function renderTable(){
+  const tab = State.activeTab;
+  const cols = TABLE_COLS[tab];
+  State.tableFilters = State.tableFilters || {subjects:{}, aes:{}, pds:{}};
+  const filters = State.tableFilters[tab] || {};
+  let data;
+  if (tab === 'subjects') data = State.filtered.subjects.slice();
+  else if (tab === 'aes') data = State.filtered.aes.slice();
+  else data = State.filtered.pds.slice();
+
+  // Per-column filter pass
+  data = data.filter(r => {
+    for (const c of cols){
+      const f = filters[c.field];
+      if (f == null || f === '') continue;
+      const raw = r[c.field];
+      const rawStr = raw == null ? '' : String(raw);
+      if (c.enumMap || c.enumOptions){
+        // exact key match
+        if (rawStr !== f) return false;
+      } else {
+        // substring match (case-insensitive) on raw value and rendered value
+        const rendered = c.render ? String(c.render(raw)).replace(/<[^>]+>/g,'') : rawStr;
+        if (!rendered.toLowerCase().includes(f.toLowerCase()) && !rawStr.toLowerCase().includes(f.toLowerCase())) return false;
+      }
+    }
+    return true;
+  });
+
+  if (State.sortField){
+    data.sort((a,b) => {
+      const av = a[State.sortField] ?? '', bv = b[State.sortField] ?? '';
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return State.sortDir === 'asc' ? cmp : -cmp;
+    });
+  }
+  const table = document.getElementById('main-table');
+  const thead = table.querySelector('thead'), tbody = table.querySelector('tbody');
+
+  // Row 1: sortable column headers
+  const sortRow = '<tr>' + cols.map(c => {
+    const arrow = State.sortField === c.field ? (State.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+    return `<th class="th-sort" data-field="${c.field}">${c.label}${arrow}</th>`;
+  }).join('') + '</tr>';
+
+  // Row 2: inline filter inputs
+  const filterRow = '<tr class="th-filter-row">' + cols.map(c => {
+    const cur = filters[c.field] || '';
+    if (c.enumOptions){
+      const opts = c.enumOptions.map(o => `<option value="${o.v}"${cur===o.v?' selected':''}>${o.l}</option>`).join('');
+      return `<th><select class="col-filter" data-field="${c.field}"><option value="">All</option>${opts}</select></th>`;
+    }
+    if (c.enumMap){
+      const opts = Object.entries(c.enumMap).map(([k,lbl]) => `<option value="${k}"${cur===k?' selected':''}>${lbl}</option>`).join('');
+      return `<th><select class="col-filter" data-field="${c.field}"><option value="">All</option>${opts}</select></th>`;
+    }
+    return `<th><input class="col-filter" type="text" data-field="${c.field}" value="${String(cur).replace(/"/g,'&quot;')}" placeholder="filter"></th>`;
+  }).join('') + '</tr>';
+
+  thead.innerHTML = sortRow + filterRow;
+
+  tbody.innerHTML = data.slice(0, 500).map(r => '<tr>' + cols.map(c => {
+    let v = r[c.field];
+    if (c.render) v = c.render(v); else v = (v==null || v==='') ? '' : String(v);
+    return `<td>${v}</td>`;
+  }).join('') + '</tr>').join('');
+  if (data.length === 0){
+    tbody.innerHTML = `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--text-secondary);padding:14px">No rows match the current filters</td></tr>`;
+  } else if (data.length > 500){
+    tbody.innerHTML += `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--text-secondary);padding:12px">Showing first 500 of ${data.length} rows</td></tr>`;
+  }
+
+  // Sort handlers on the top row only
+  thead.querySelectorAll('th.th-sort').forEach(th => {
+    th.addEventListener('click', () => {
+      const f = th.dataset.field;
+      if (State.sortField === f) State.sortDir = State.sortDir === 'asc' ? 'desc' : 'asc';
+      else { State.sortField = f; State.sortDir = 'desc'; }
+      renderTable();
+    });
+  });
+
+  // Filter handlers — debounce text inputs
+  thead.querySelectorAll('select.col-filter').forEach(el => {
+    el.addEventListener('change', () => {
+      filters[el.dataset.field] = el.value;
+      State.tableFilters[tab] = filters;
+      renderTable();
+    });
+  });
+  thead.querySelectorAll('input.col-filter').forEach(el => {
+    let t;
+    el.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        filters[el.dataset.field] = el.value;
+        State.tableFilters[tab] = filters;
+        // preserve focus & caret
+        const field = el.dataset.field, caret = el.selectionStart;
+        renderTable();
+        const again = document.querySelector(`input.col-filter[data-field="${field}"]`);
+        if (again){ again.focus(); try { again.setSelectionRange(caret, caret); } catch(_){} }
+      }, 180);
+    });
+  });
+}
+
+// ============================================================================
+//  File handling — File System Access API + fallback
+// ============================================================================
+async function refreshFromHandle(){
+  if (!State.fileHandle) return;
+  try {
+    setStatus('loading','Refreshing…');
+    const file = await State.fileHandle.getFile();
+    State.fileLastModified = file.lastModified;
+    const records = await parseXlsx(file);
+    State.filename = file.name;
+    hideBanner();
+    loadRecords(records, `File: ${file.name} (${(file.size/1024).toFixed(0)} KB)`, 'live');
+  } catch (err){
+    console.error(err);
+    showBanner('error', `Refresh failed: ${err.message}`);
+    setStatus('error','Refresh failed');
+  }
+}
+
+async function pickFile(){
+  if (window.showOpenFilePicker){
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types:[{description:'Excel Workbook', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx','.xlsm'], 'application/vnd.ms-excel':['.xls']}}],
+        excludeAcceptAllOption:false, multiple:false,
+      });
+      State.fileHandle = handle;
+      document.getElementById('btn-refresh').disabled = false;
+      await refreshFromHandle();
+      showBanner('ok', `<strong>File linked.</strong> Click <em>Refresh from file</em> or toggle auto-refresh to re-read it after Power Query updates the xlsx.`);
+    } catch (err){
+      if (err.name !== 'AbortError'){
+        showBanner('error', `Could not open file: ${err.message}`);
+      }
+    }
+  } else {
+    // Safari/Firefox: trigger the hidden file input
+    document.getElementById('file-input').click();
+    showBanner('warn', `Your browser does not support the File System Access API (Chrome/Edge only). You'll need to re-pick the file each time you refresh. Consider using Chrome or Edge for true one-click refresh.`);
+  }
+}
+
+// ============================================================================
+//  Auto-refresh
+// ============================================================================
+function setupAutoRefresh(){
+  if (State.autoTimer){ clearInterval(State.autoTimer); State.autoTimer = null; }
+  const enabled = document.getElementById('chk-auto-refresh').checked;
+  const sec = parseInt(document.getElementById('cfg-refresh-sec').value) || 0;
+  if (enabled && sec > 0 && State.fileHandle){
+    State.autoTimer = setInterval(async () => {
+      try {
+        const file = await State.fileHandle.getFile();
+        if (file.lastModified !== State.fileLastModified){
+          await refreshFromHandle();
+        }
+      } catch(e){ console.warn('auto-refresh error', e); }
+    }, sec * 1000);
+  }
+}
+
+// ============================================================================
+//  UI wiring
+// ============================================================================
+function wireUI(){
+  ['f-date-start','f-date-end','f-arm','f-sex','f-status'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+  document.getElementById('cfg-start').addEventListener('change', (e) => {
+    e.target.dataset.userSet = '1';
+    renderScreeningCharts(); renderTargetCharts(); renderSparks();
+  });
+  ['cfg-target-enroll','cfg-target-rand','cfg-target-months'].forEach(id => document.getElementById(id).addEventListener('change', () => { renderTargetCharts(); renderSparks(); }));
+  document.getElementById('cfg-refresh-sec').addEventListener('change', setupAutoRefresh);
+  document.getElementById('chk-auto-refresh').addEventListener('change', setupAutoRefresh);
+  document.getElementById('btn-reset-filters').addEventListener('click', () => {
+    ['f-date-start','f-date-end'].forEach(id => document.getElementById(id).value = '');
+    ['f-arm','f-sex','f-status'].forEach(id => document.getElementById(id).value = 'all');
+    applyFilters();
+  });
+  document.querySelectorAll('.table-tab').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.table-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    State.activeTab = btn.dataset.tab;
+    State.sortField = null;
+    document.getElementById('table-title').textContent = State.activeTab==='subjects' ? 'Subject-level status' : State.activeTab==='aes' ? 'Adverse events' : 'Protocol deviations';
+    renderTable();
+  }));
+  document.getElementById('btn-pick-file').addEventListener('click', pickFile);
+  document.getElementById('btn-refresh').addEventListener('click', refreshFromHandle);
+  document.getElementById('btn-load-sample').addEventListener('click', () => { hideBanner(); State.fileHandle = null; document.getElementById('btn-refresh').disabled = true; loadRecords(generateSampleData(), 'Sample data', 'sample'); });
+  document.getElementById('file-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      setStatus('loading','Parsing…');
+      const records = await parseXlsx(file);
+      State.filename = file.name; State.fileLastModified = file.lastModified;
+      hideBanner();
+      loadRecords(records, `File: ${file.name} (${(file.size/1024).toFixed(0)} KB)`, 'live');
+    } catch (err){
+      showBanner('error', `Could not parse xlsx: ${err.message}`);
+      setStatus('error','Parse failed');
+    }
+  });
+}
+
+// ============================================================================
+//  Boot
+// ============================================================================
+wireUI();
+loadRecords(generateSampleData(), 'Sample data — click "Pick xlsx file" to load real data', 'sample');
+</script>
+</body>
+</html>

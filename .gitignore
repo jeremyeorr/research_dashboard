@@ -1,0 +1,17 @@
+# REDCap exports — contain PHI, never commit
+*.xlsx
+*.xls
+*.csv
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# R artifacts (if the Rmd lives in the repo)
+.Rproj.user/
+.Rhistory
+.RData
+*.Rproj
